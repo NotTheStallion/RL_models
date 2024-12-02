@@ -1,12 +1,15 @@
 import numpy as np
 from grid_world import GridWorldMDP
 
-class GridWorldEnv():
-    def __init__(self, grid_size=(5, 5), start=(0, 0), goal=(4, 4)):
+class GridWorldEnv(GridWorldMDP):
+    def __init__(self, grid_size=(5, 5), start=(0, 0), goal=(4, 4), number_of_holes=2):
+        super().__init__(grid_size[0], grid_size[1], number_of_holes)
         self.grid_size = grid_size
         self.start = start
         self.goal = goal
         self.state = None
+        self.observation_space = np.prod(self.grid_size)
+        self.action_space = 4  # up, down, left, right
         self.reset()
 
     def reset(self):
