@@ -73,13 +73,13 @@ class GridWorldMDP:
                     action = policy[(i, j)]
                     # Use arrows to represent actions
                     if action == (1, 0):
-                        cell = "â†“".center(cell_width)
+                        cell = "↓".center(cell_width)
                     elif action == (-1, 0):
-                        cell = "â†‘".center(cell_width)
+                        cell = "↑".center(cell_width)
                     elif action == (0, 1):
-                        cell = "â†’".center(cell_width)
+                        cell = "→".center(cell_width)
                     elif action == (0, -1):
-                        cell = "â†".center(cell_width)
+                        cell = "←".center(cell_width)
                     else:
                         cell = " ".center(cell_width)  # Fallback for undefined actions
                 row += cell + "|"
