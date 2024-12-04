@@ -1,132 +1,150 @@
-import numpy as np
+import math
 import random
-from collections import defaultdict
 from grid_world_env import GridWorldEnv
 
-class GridWorldEnv(GridWorldMDP):
-    def __init__(self, grid_size=(5, 5), start=(0, 0), goal=(4, 4)):
-        super().__init__(*grid_size, 1, start, goal)
-        self.grid_size = grid_size
-        self.start = start
-        self.goal = goal
-        self.state = None
-        self.observation_space = np.prod(self.grid_size)
-        self.action_space = 4  # up, down, left, right
-        self.reset()
+class MCTSNode:
+    def __init__(self, state, parent=None):
+        """
+        Represents a node in the Monte Carlo Tree.
+        Args:
+            state: The environment state this node represents.
+            parent: The parent node of this node.
+        """
+        self.state = state  # The state represented by this node
+        self.parent = parent  # Parent node
+        self.children = {}  # Dictionary mapping actions to child nodes
+        self.visits = 0  # Number of times this node was visited
+        self.total_reward = 0  # Total reward accumulated
 
-    def reset(self):
-        self.state = self.start
-        return self.state
+    def is_fully_expanded(self, action_space):
+        """
+        Checks if all possible actions have been expanded.
+        Args:
+            action_space: List of all possible actions.
+        Returns:
+            True if all actions have been expanded, False otherwise.
+        """
+        return len(self.children) == len(action_space)
 
-    def step(self, action):
-        x, y = self.state
-        if action == 0:  # up
-            x = max(0, x - 1)
-        elif action == 1:  # down
-            x = min(self.grid_size[0] - 1, x + 1)
-        elif action == 2:  # left
-            y = max(0, y - 1)
-        elif action == 3:  # right
-            y = min(self.grid_size[1] - 1, y + 1)
-        self.state = (x, y)
-        reward = -1
-        done = self.state == self.goal
-        if done:
-            reward = 0
-        return self.state, reward, done
+    def best_child(self, exploration_weight=1.0):
+        """
+        Selects the best child node using the Upper Confidence Bound (UCB) formula.
+        Args:
+            exploration_weight: Weight for exploration in the UCB formula.
+        Returns:
+            The child node with the highest UCB value.
+        """
+        return max(self.children.values(), key=lambda child: child.ucb_score(exploration_weight))
 
-    def render(self):
-        grid = np.zeros(self.grid_size)
-        x, y = self.state
-        grid[x, y] = 1
-        gx, gy = self.goal
-        grid[gx, gy] = 2
-        print(grid)
+    def ucb_score(self, exploration_weight):
+        """
+        Calculates the Upper Confidence Bound (UCB) score.
+        Args:
+            exploration_weight: Weight for exploration.
+        Returns:
+            The UCB score.
+        """
+        if self.visits == 0:
+            return float('inf')  # Infinite score for unvisited nodes
+        exploitation_score = self.total_reward / self.visits
+        exploration_score = exploration_weight * math.sqrt(math.log(self.parent.visits) / self.visits)
+        return exploitation_score + exploration_score
 
-class MCTS:
-    def __init__(self, env, n_iterations=1000, exploration_weight=1.4):
-        self.env = env
-        self.n_iterations = n_iterations
-        self.exploration_weight = exploration_weight
-        self.Q = defaultdict(float)
-        self.N = defaultdict(int)
-        self.children = dict()
+    def expand(self, action, next_state):
+        """
+        Expands this node by adding a child node for a given action and state.
+        Args:
+            action: The action taken to reach the child state.
+            next_state: The child state reached by the action.
+        Returns:
+            The new child node.
+        """
+        child_node = MCTSNode(state=next_state, parent=self)
+        self.children[action] = child_node
+        return child_node
 
-    def choose(self, state):
-        if state not in self.children:
-            return random.choice(self.env.get_possible_actions(state))
-        
-        def score(action):
-            if (state, action) not in self.Q:
-                return float('-inf')
-            return self.Q[(state, action)] / self.N[(state, action)]
-        
-        return max(self.children[state], key=score)
+    def backpropagate(self, reward):
+        """
+        Backpropagates the reward to update this node and all its ancestors.
+        Args:
+            reward: The reward to propagate.
+        """
+        self.visits += 1
+        self.total_reward += reward
+        if self.parent:
+            self.parent.backpropagate(reward)
 
-    def do_rollout(self, state):
-        path = self._select(state)
-        leaf = path[-1]
-        self._expand(leaf)
-        reward = self._simulate(leaf)
-        self._backpropagate(path, reward)
+def monte_carlo_tree_search(env, root_state, num_simulations, exploration_weight=1.0):
+    """
+    Performs Monte Carlo Tree Search to find the best action from the root state.
+    Args:
+        env: The environment instance.
+        root_state: The starting state.
+        num_simulations: Number of simulations to perform.
+        exploration_weight: Exploration weight in UCB formula.
+    Returns:
+        The best action to take from the root state.
+    """
+    root = MCTSNode(root_state)
 
-    def _select(self, state):
-        path = []
-        while True:
-            path.append(state)
-            if state not in self.children or not self.children[state]:
-                return path
-            unexplored = self.children[state] - self.N.keys()
-            if unexplored:
-                n = unexplored.pop()
-                path.append(n)
-                return path
-            state = self._uct_select(state)
-
-    def _expand(self, state):
-        if state in self.children:
-            return
-        self.children[state] = self.env.get_possible_actions(state)
-
-    def _simulate(self, state):
-        env_copy = self.env.clone()
-        env_copy.set_state(state)
-        while not env_copy.is_terminal():
-            action = random.choice(env_copy.get_possible_actions(state))
-            state, reward, done, _ = env_copy.step(action)
+    for _ in range(num_simulations):
+        # Selection
+        node = root
+        done = False
+        env.reset_to_state(root.state)
+        while node.is_fully_expanded(env.actions) and node.children:
+            action, node = max(node.children.items(), key=lambda item: item[1].ucb_score(exploration_weight))
+            _, _, done, _ = env.step(action)
             if done:
-                return reward
-        return 0
+                break
 
-    def _backpropagate(self, path, reward):
-        for state in reversed(path):
-            if state in self.N:
-                self.N[state] += 1
-                self.Q[state] += reward
-            else:
-                self.N[state] = 1
-                self.Q[state] = reward
+        # Expansion
+        if not done:
+            for action in env.actions:
+                if action not in node.children:
+                    next_state, _, _, _ = env.step(action)
+                    node.expand(action, next_state)
 
-    def _uct_select(self, state):
-        log_N_vertex = np.log(self.N[state])
+        # Simulation
+        current_state = env.current_state
+        total_reward = 0
+        for _ in range(100):  # Simulate up to 100 steps
+            action = random.choice(env.actions)
+            _, reward, done, _ = env.step(action)
+            total_reward += reward
+            if done:
+                break
 
-        def uct(action):
-            return self.Q[(state, action)] / self.N[(state, action)] + self.exploration_weight * np.sqrt(
-                log_N_vertex / self.N[(state, action)])
+        # Backpropagation
+        node.backpropagate(total_reward)
 
-        return max(self.children[state], key=uct)
-
-
-
-
+    # Choose the best action based on visit count
+    best_action = max(root.children.items(), key=lambda item: item[1].visits)[0]
+    return best_action
 
 if __name__ == "__main__":
-    env = GridWorldEnv()
-    mcts = MCTS(env)
+    # Initialize the environment
+    env = GridWorldEnv(4, 4, 4)
 
+    # Start state
     initial_state = env.reset()
-    for _ in range(mcts.n_iterations):
-        mcts.do_rollout(initial_state)
 
-    best_action = mcts.choose(initial_state)
-    print(f"Best action from initial state: {best_action}")
+    # Perform MCTS until reaching the final state
+    num_simulations = 1000
+    best_actions = {}
+
+    current_state = initial_state
+
+    while True:
+        best_action = monte_carlo_tree_search(env, current_state, num_simulations)
+        best_actions[current_state] = best_action
+        next_state, _, done, _ = env.step(best_action)
+        print(f"Best action from state {current_state}: {best_action} / Next state: {next_state}")
+        current_state = next_state
+        if current_state == env.terminal_state:
+            print("Reached the final state.")
+            break
+
+    print("Best actions for each state:")
+    for state, action in best_actions.items():
+        print(f"State {state}: Best action {action}")
