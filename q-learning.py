@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 class QLearningAgent:
-    def __init__(self, state_size, action_size, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.5, exploration_decay=0.995, min_exploration_rate=0.01):
+    def __init__(self, state_size, action_size, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.6, exploration_decay=0.995, min_exploration_rate=0.01):
         """
         Initializes the Q-Learning agent with necessary parameters.
         
@@ -73,12 +73,34 @@ class QLearningAgent:
         # Q-Learning update rule
         self.q_table[self.state_order(state), action] += self.alpha * (target - current_q)
 
-        # if done:
-        #     # Decay exploration rate after each episode
-        #     self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+        if done:
+            # Decay exploration rate after each episode
+            self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+        
+    def policy(self):
+        """
+        Obtains the learned policy from the Q-table.
+        
+        Returns:
+            A dictionary mapping states to actions.
+        """
+        # Create a policy dictionary for the Q-Learning agent
+        policy = {state: random.choice(env.actions) for state in env.states}
+
+        # Update the policy based on the learned Q-table
+        for state in env.states:
+            best_action = np.argmax(agent.q_table[agent.state_order(state)])
+            policy[state] = env.actions[best_action]
+        return policy
 
 
 if __name__ == "__main__":
+    # Set random seed for reproducibility
+    random_seed = 2020
+    np.random.seed(random_seed)
+    random.seed(random_seed)
+    
+    
     # Environment parameters
     height = 4
     width = 4
@@ -145,6 +167,14 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
+    
+
+    print("Learned Policy:")
+    env.print_policy(agent.policy())
+    # for state, action in policy.items():
+    #     print(f"State: {state}, Action: {action}")
+    exit()
+    
     # Testing the learned policy
     test_episodes = 5
     for test in range(test_episodes):
