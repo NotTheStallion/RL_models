@@ -25,6 +25,9 @@ class QLearningAgent:
         self.epsilon = exploration_rate  # Exploration rate
         self.epsilon_decay = exploration_decay  # Exploration decay rate
         self.epsilon_min = min_exploration_rate  # Minimum exploration rate
+    
+    def state_order(self, state):
+        return state[0] * self.action_size + state[1]
 
     def choose_action(self, state):
         """
@@ -36,14 +39,15 @@ class QLearningAgent:
         Returns:
             The action chosen.
         """
+        state_ord = self.state_order(state)
         if random.uniform(0, 1) < self.epsilon:
             # Exploration: choose a random action
             action = random.choice(range(self.action_size))
         else:
             # Exploitation: choose the best action based on Q-table
-            max_value = np.max(self.q_table[state])
+            max_value = np.max(self.q_table[state_ord])
             # In case multiple actions have the same max value, randomly choose among them
-            actions_with_max_value = np.where(self.q_table[state] == max_value)[0]
+            actions_with_max_value = np.where(self.q_table[state_ord] == max_value)[0]
             action = random.choice(actions_with_max_value)
         return action
 
@@ -58,16 +62,16 @@ class QLearningAgent:
             next_state: The state transitioned to.
             done: Boolean indicating if the episode has ended.
         """
-        current_q = self.q_table[state, action]  # Current Q-value
+        current_q = self.q_table[self.state_order(state), action]  # Current Q-value
         if done:
             target = reward  # If done, the target is the immediate reward
         else:
             # Estimate of optimal future value
-            next_max = np.max(self.q_table[next_state])
+            next_max = np.max(self.q_table[self.state_order(next_state)])
             target = reward + self.gamma * next_max
 
         # Q-Learning update rule
-        self.q_table[state, action] += self.alpha * (target - current_q)
+        self.q_table[self.state_order(state), action] += self.alpha * (target - current_q)
 
         # if done:
         #     # Decay exploration rate after each episode
@@ -103,11 +107,11 @@ if __name__ == "__main__":
         steps = 0
 
         for step in range(max_steps_per_episode):
-            action = agent.choose_action(sum(state))  # Choose an action based on current policy
+            action = agent.choose_action(state)  # Choose an action based on current policy
             print(f"action {action}")
             next_state, reward, done, _ = env.step(env.actions[action])  # Take the action in the environment
 
-            agent.learn(state, action, reward, sum(next_state), done)  # Update Q-table
+            agent.learn(state, action, reward, next_state, done)  # Update Q-table
 
             state = next_state  # Move to the next state
             total_reward += reward  # Accumulate reward
@@ -151,12 +155,15 @@ if __name__ == "__main__":
 
         while not done:
             # Choose the best action based on the learned Q-table
-            max_value = np.max(agent.q_table[sum(state)])
+            max_value = np.max(agent.q_table[agent.state_order(state)])
             print(f" q_table {agent.q_table}")
-            actions_with_max_value = np.where(agent.q_table[sum(state)] == max_value)[0]
+            print(f"for state {state} max_value {max_value}")
+            print(f"state_order {agent.state_order(state)}")
+            actions_with_max_value = np.where(agent.q_table[agent.state_order(state)] == max_value)[0]
             action = random.choice(actions_with_max_value)
+            print(f"action {action}")
 
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, _ = env.step(env.actions[action])
             env.render()
 
             state = next_state
