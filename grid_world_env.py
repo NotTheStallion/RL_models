@@ -14,6 +14,17 @@ class GridWorldEnv(GridWorldMDP):
         """
         self.current_state = self.initial_state
         return self.current_state
+    
+    def reset_to_state(self, state):
+        """
+        Resets the environment to a specific state.
+        Args:
+            state: The state to reset to.
+        """
+        if state in self.states:
+            self.current_state = state
+        else:
+            raise ValueError(f"Invalid state: {state}")
 
     def step(self, action):
         """
