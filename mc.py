@@ -1,13 +1,14 @@
 import numpy as np
 import random
-from grid_world_env import GridWorldEnv
+from grid_world_env import GridWorldEnvSlow
 import matplotlib.pyplot as plt
 
 class MonteCarloAgent:
-    def __init__(self, state_size, action_size, gamma=0.99, epsilon=0.7, epsilon_decay=0.995, epsilon_min=0.01):
+    def __init__(self, env, state_size, action_size, gamma=0.99, epsilon=0.7, epsilon_decay=0.995, epsilon_min=0.01):
         """
         Initializes the Monte Carlo agent.
         """
+        self.env = env
         self.q_table = np.zeros((state_size, action_size))
         self.returns = { (s, a): [] for s in range(state_size) for a in range(action_size) }
         self.gamma = gamma
@@ -60,7 +61,7 @@ class MonteCarloAgent:
         Returns:
             A dictionary mapping states to optimal actions.
         """
-        return {state: env.actions[np.argmax(self.q_table[self.state_order(state)])] for state in env.states}
+        return {state: self.env.actions[np.argmax(self.q_table[self.state_order(state)])] for state in self.env.states}
 
 if __name__ == "__main__":
     random_seed = 2020
@@ -71,11 +72,11 @@ if __name__ == "__main__":
     width = 4
     number_of_holes = 4
 
-    env = GridWorldEnv(height, width, number_of_holes)
+    env = GridWorldEnvSlow(height, width, number_of_holes)
     state_size = height * width
     action_size = len(env.actions)
 
-    agent = MonteCarloAgent(state_size=state_size, action_size=action_size)
+    agent = MonteCarloAgent(env, state_size=state_size, action_size=action_size)
 
     num_episodes = 1000
     max_steps_per_episode = 100
