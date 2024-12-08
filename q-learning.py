@@ -5,26 +5,17 @@ import matplotlib.pyplot as plt
 
 
 class QLearningAgent:
-    def __init__(self, state_size, action_size, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.6, exploration_decay=0.995, min_exploration_rate=0.01):
+    def __init__(self, state_size, action_size, alpha=0.1, gamma=0.99, epsilon=0.6, epsilon_decay=0.995, epsilon_min=0.01):
         """
         Initializes the Q-Learning agent with necessary parameters.
-        
-        Args:
-            state_size: The number of possible states.
-            action_size: The number of possible actions.
-            learning_rate: The rate at which the agent learns.
-            discount_factor: The discount factor for future rewards.
-            exploration_rate: The initial exploration rate (epsilon).
-            exploration_decay: The rate at which exploration decreases.
-            min_exploration_rate: The minimum exploration rate.
         """
-        self.q_table = np.zeros((state_size, action_size))  # Initialize Q-table as a matrix
-        self.action_size = action_size  # Number of possible actions
-        self.alpha = learning_rate  # Learning rate
-        self.gamma = discount_factor  # Discount factor
-        self.epsilon = exploration_rate  # Exploration rate
-        self.epsilon_decay = exploration_decay  # Exploration decay rate
-        self.epsilon_min = min_exploration_rate  # Minimum exploration rate
+        self.q_table = np.zeros((state_size, action_size))
+        self.action_size = action_size
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.epsilon_min = epsilon_min
     
     def state_order(self, state):
         return state[0] * self.action_size + state[1]
@@ -32,21 +23,15 @@ class QLearningAgent:
     def choose_action(self, state):
         """
         Chooses an action based on the epsilon-greedy policy.
-        
-        Args:
-            state: The current state.
-        
-        Returns:
-            The action chosen.
         """
         state_ord = self.state_order(state)
         if random.uniform(0, 1) < self.epsilon:
-            # Exploration: choose a random action
+            # Exploration
             action = random.choice(range(self.action_size))
         else:
-            # Exploitation: choose the best action based on Q-table
+            # Exploitation
             max_value = np.max(self.q_table[state_ord])
-            # In case multiple actions have the same max value, randomly choose among them
+
             actions_with_max_value = np.where(self.q_table[state_ord] == max_value)[0]
             action = random.choice(actions_with_max_value)
         return action
@@ -54,27 +39,21 @@ class QLearningAgent:
     def learn(self, state, action, reward, next_state, done):
         """
         Updates the Q-table based on the action taken and the reward received.
-        
-        Args:
-            state: The previous state.
-            action: The action taken.
-            reward: The reward received.
-            next_state: The state transitioned to.
-            done: Boolean indicating if the episode has ended.
         """
-        current_q = self.q_table[self.state_order(state), action]  # Current Q-value
+        current_q = self.q_table[self.state_order(state), action]
+        
+        # ! Update rule for Q-learning
         if done:
-            target = reward  # If done, the target is the immediate reward
+            target = reward
         else:
-            # Estimate of optimal future value
             next_max = np.max(self.q_table[self.state_order(next_state)])
             target = reward + self.gamma * next_max
 
-        # Q-Learning update rule
         self.q_table[self.state_order(state), action] += self.alpha * (target - current_q)
+        # ! End update rule for Q-learning
 
+        # @note : the more we train the less we explore
         if done:
-            # Decay exploration rate after each episode
             self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
         
     def policy(self):
@@ -84,10 +63,8 @@ class QLearningAgent:
         Returns:
             A dictionary mapping states to actions.
         """
-        # Create a policy dictionary for the Q-Learning agent
         policy = {state: random.choice(env.actions) for state in env.states}
 
-        # Update the policy based on the learned Q-table
         for state in env.states:
             best_action = np.argmax(agent.q_table[agent.state_order(state)])
             policy[state] = env.actions[best_action]
@@ -95,30 +72,27 @@ class QLearningAgent:
 
 
 if __name__ == "__main__":
-    # Set random seed for reproducibility
     random_seed = 2020
     np.random.seed(random_seed)
     random.seed(random_seed)
     
     
-    # Environment parameters
     height = 4
     width = 4
     number_of_holes = 4
 
-    # Initialize the environment
+
     env = GridWorldEnv(height, width, number_of_holes)
     state_size = height * width
     action_size = len(env.actions)
 
-    # Initialize the Q-Learning agent
     agent = QLearningAgent(state_size=state_size, action_size=action_size)
 
-    # Training parameters
+
     num_episodes = 1000
     max_steps_per_episode = 100  # To prevent infinite loops
 
-    # Tracking performance
+
     rewards_per_episode = []
     steps_per_episode = []
 
@@ -130,22 +104,20 @@ if __name__ == "__main__":
 
         for step in range(max_steps_per_episode):
             action = agent.choose_action(state)  # Choose an action based on current policy
-            print(f"action {action}")
-            next_state, reward, done, _ = env.step(env.actions[action])  # Take the action in the environment
+            next_state, reward, done, _ = env.step(env.actions[action])
 
-            agent.learn(state, action, reward, next_state, done)  # Update Q-table
+            agent.learn(state, action, reward, next_state, done)
 
-            state = next_state  # Move to the next state
-            total_reward += reward  # Accumulate reward
+            state = next_state
+            total_reward += reward
             steps += 1
 
             if done:
-                break  # Episode ends if done is True
+                break
 
         rewards_per_episode.append(total_reward)
         steps_per_episode.append(steps)
 
-        # Optional: Print progress every 100 episodes
         if (episode + 1) % 100 == 0:
             print(f"Episode {episode + 1}/{num_episodes} - Total Reward: {total_reward}, Steps: {steps}, Epsilon: {agent.epsilon:.4f}")
 
@@ -169,33 +141,6 @@ if __name__ == "__main__":
 
     
 
-    print("Learned Policy:")
+    print("Learned Q-learning Policy:")
     env.print_policy(agent.policy())
-    # for state, action in policy.items():
-    #     print(f"State: {state}, Action: {action}")
-    exit()
     
-    # Testing the learned policy
-    test_episodes = 5
-    for test in range(test_episodes):
-        state = env.reset()
-        done = False
-        print(f"Test Episode {test + 1}:")
-        env.render()
-
-        while not done:
-            # Choose the best action based on the learned Q-table
-            max_value = np.max(agent.q_table[agent.state_order(state)])
-            print(f" q_table {agent.q_table}")
-            print(f"for state {state} max_value {max_value}")
-            print(f"state_order {agent.state_order(state)}")
-            actions_with_max_value = np.where(agent.q_table[agent.state_order(state)] == max_value)[0]
-            action = random.choice(actions_with_max_value)
-            print(f"action {action}")
-
-            next_state, reward, done, _ = env.step(env.actions[action])
-            env.render()
-
-            state = next_state
-
-        print(f"Episode {test + 1} finished with reward {reward}\n")
