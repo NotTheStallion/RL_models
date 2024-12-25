@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from grid_world_env import GridWorldEnvSlow
+from simple.grid_world_env import GridWorldEnvSlow
 import matplotlib.pyplot as plt
 
 
