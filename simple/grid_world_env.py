@@ -1,5 +1,5 @@
 import random
-from grid_world import GridWorldMDP
+from simple.grid_world import GridWorldMDP
 from abc import ABC, abstractmethod
 
 class GridWorldEnv(GridWorldMDP):
