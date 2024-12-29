@@ -45,14 +45,11 @@ class GAAgent:
         """
         # the sum of distance of each cell to the goal
         self.env.reset()
-        total_distance = 0
+        total_reward = 0
         for action in chromosome:
-            try:
-                next_state, reward, done, _ = self.env.step(action)
-                total_distance += abs(next_state[0] - self.env.terminal_state[0]) + abs(next_state[1] - self.env.terminal_state[1])
-            except:
-                total_distance = np.inf
-        return -total_distance
+            next_state, reward, done, _ = self.env.step(action)
+            total_reward += reward
+        return total_reward
 
     def select_parents(self, fitness_scores):
         """
@@ -94,7 +91,7 @@ class GAAgent:
         """
         for i in range(self.chromosome_length):
             if random.random() < self.mutation_rate:
-                chromosome[i] = random.choice(range(len(self.env.actions)))
+                chromosome[i] = random.choice(self.env.actions)
 
         return chromosome
 
@@ -160,3 +157,16 @@ if __name__ == "__main__":
 
     agent = GAAgent(env, population_size=50, chromosome_length=20, mutation_rate=0.1, elitism_count=2)
     agent.run(generations=100)
+    
+    # Evaluate the best chromosome
+    best_chromosome = max(agent.population, key=agent.evaluate_fitness)
+    env.reset()
+    env.render()
+    for action in best_chromosome:
+        env.step(action)
+        env.render()
+        print()
+    env.render()
+    print("Best Chromosome:", best_chromosome)
+    print("Best Fitness:", agent.evaluate_fitness(best_chromosome))
+    
