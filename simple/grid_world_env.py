@@ -27,6 +27,14 @@ class GridWorldEnv(GridWorldMDP):
         else:
             raise ValueError(f"Invalid state: {state}")
 
+    def possible_actions(self):
+        possible_actions = []
+        for action in self.actions:
+            new_state = (self.current_state[0] + action[0], self.current_state[1] + action[1])
+            if new_state in self.states:
+                possible_actions.append(action)
+        return possible_actions
+
     @abstractmethod
     def step(self, action):
         """
