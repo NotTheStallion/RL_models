@@ -20,7 +20,7 @@ class AdvGridWorldEnv(AdvGridWorldMDP):
         elif self.goal_type == 'recharge':
             self.current_state = (self.height-1, 0)
             
-        self.current_state = random.choice(list(self.states - set(self.bad_states) - set(self.terminal_states)))
+        # self.current_state = random.choice(list(self.states - set(self.bad_states) - set(self.terminal_states)))
         return self.current_state
     
     def reset_to_state(self, state):
@@ -99,24 +99,24 @@ class AdvGridWorldEnvSlow(AdvGridWorldEnv):
             new_state = self.current_state
         
         if new_state in self.bad_states:
-            reward = -10
+            reward = -100
             done = True
         elif new_state in self.terminal_states:
-            reward = 10
+            reward = 5
             done = True
         elif new_state in self.tmp_materials:
-            reward = 5
+            reward = 10
             self.tmp_materials.remove(new_state)
             done = False
         elif new_state in self.tmp_clean:
-            reward = 10
+            reward = 30
             self.tmp_clean.remove(new_state)
             done = False
         elif new_state in self.recharge:
             reward = 10
             done = True
         else:
-            reward = 0
+            reward = -1
             done = False
 
         self.current_state = new_state
