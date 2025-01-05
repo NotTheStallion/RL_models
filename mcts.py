@@ -1,134 +1,116 @@
 import numpy as np
+import math
 import random
-from math import sqrt, log
-from simple.grid_world_env import GridWorldEnvSlow
+from simple.grid_world_env import GridWorldEnv
 
-
-class TreeNode:
-    def __init__(self, state, parent=None):
+class Node:
+    def __init__(self, state, parent=None, action=None):
         self.state = state
         self.parent = parent
-        self.action = None
-        self.children = {}
-        self.visit_count = 0
-        self.total_reward = 0.0
+        self.action = action
+        self.children = []
+        self.visits = 0
+        self.value = 0.0
 
     def is_fully_expanded(self, action_space):
         return len(self.children) == len(action_space)
 
-    def best_child(self, exploration_param=1.41):
-        """
-        Select the child with the highest UCB score.
-        """
-        return max(
-            self.children.values(),
-            key=lambda child: (child.total_reward / (child.visit_count + 1e-6)) +
-                              exploration_param * sqrt(log(self.visit_count + 1) / (child.visit_count + 1e-6))
-        )
-
-    def add_child(self, action, child_state):
-        """
-        Add a new child node for a given action.
-        """
-        child_node = TreeNode(state=child_state, parent=self)
-        self.children[action] = child_node
-        self.action = action
-        return child_node
-
+    def best_child(self, exploration_weight=1.0)->'Node':
+        weights = [
+            (child.value / (child.visits + 1e-6)) + exploration_weight * math.sqrt(math.log(self.visits + 1) / (child.visits + 1e-6))
+            for child in self.children
+        ]
+        # print(weights)
+        print([child.value for child in self.children])
+        return self.children[np.argmax(weights)]
 
 class MCTSAgent:
-    def __init__(self, env, num_simulations, exploration_param=1.41):
-        self.env = env
-        self.num_simulations = num_simulations
-        self.exploration_param = exploration_param
+    def __init__(self, env:GridWorldEnv, iterations=5, exploration_weight=1):
+        self.env:GridWorldEnv = env
+        self.iterations = iterations
+        self.exploration_weight = exploration_weight
 
-    def search(self, initial_state):
-        """
-        Perform MCTS starting from the initial state.
-        """
-        root = TreeNode(state=initial_state)
+    def select(self, node:Node, action_space):
+        while node.state != self.env.terminal_state:
+            if not node.is_fully_expanded(action_space):
+                return self.expand(node, action_space)
+            else:
+                node = node.best_child(self.exploration_weight)
+        return node
 
-        for _ in range(self.num_simulations):
-            node = root
+    def expand(self, node:Node, action_space):
+        tried_actions = [child.action for child in node.children]
+        for action in action_space:
+            if action not in tried_actions:
+                self.env.reset_to_state(node.state)
+                next_state, _, _, _ = self.env.step(action)
+                child_node = Node(state=next_state, parent=node, action=action)
+                node.children.append(child_node)
+                return child_node
 
-            # Selection
-            while not node.is_fully_expanded(self.env.actions) and node.children:
-                node = node.best_child(self.exploration_param)
-
-            # Expansion
-            if not node.is_fully_expanded(self.env.actions):
-                untried_actions = [action for action in self.env.actions if action not in node.children]
-                action = random.choice(untried_actions)
-                next_state, reward, done, _ = self.env.step(action)
-                node = node.add_child(action, next_state)
-
-                if done:
-                    node.total_reward += reward
-                    continue
-
-            # Simulation
-            total_reward = self.simulate(node.state)
-
-            # Backpropagation
-            self.backpropagate(node, total_reward)
-
-        self.env.reset_to_state(root.state)
-        return root.best_child(exploration_param=0).action
-
-    def simulate(self, state):
-        """
-        Perform a random rollout to a terminal state.
-        """
+    def simulate(self, node:Node):
+        current_state = node.state
         total_reward = 0
-        current_state = state
-        done = False
+        depth = 0
 
-        while not done:
+        while current_state != self.env.terminal_state and depth < 50:
             action = random.choice(self.env.actions)
-            next_state, reward, done, _ = self.env.step(action)
-            total_reward += reward
-            current_state = next_state
+            # self.env.reset_to_state(current_state)
+            current_state, reward, _, _ = self.env.step(action)
+            total_reward = reward
+            depth += 1
 
+        self.env.reset_to_state(node.state)
+        print(f"Simulated reward: {total_reward}")
         return total_reward
 
-    def backpropagate(self, node, reward):
-        """
-        Update the tree nodes with the simulation result.
-        """
+    def backpropagate(self, node:Node, reward):
         while node is not None:
-            node.visit_count += 1
-            node.total_reward += reward
+            node.visits += 1
+            node.value += reward
             node = node.parent
 
+    def search(self, root_state):
+        root = Node(state=root_state)
+
+        for _ in range(self.iterations):
+            node = self.select(root, self.env.actions)
+            reward = self.simulate(node)
+            self.backpropagate(node, reward)
+            self.env.reset_to_state(root_state)
+
+        self.env.reset_to_state(root_state)
+        return root.best_child(exploration_weight=0).action
 
 if __name__ == "__main__":
-    random_seed = 2023
+    from simple.grid_world_env import GridWorldEnvSlow
+
+    random_seed = 2020
     np.random.seed(random_seed)
     random.seed(random_seed)
 
-    # Define environment
     height = 4
     width = 4
     number_of_holes = 4
 
     env = GridWorldEnvSlow(height, width, number_of_holes)
-    initial_state = env.reset()
-    env.render()
 
-    # MCTS Agent
-    mcts_agent = MCTSAgent(env=env, num_simulations=100)
+    agent = MCTSAgent(env, iterations=100, exploration_weight=1.4)
 
-    done = False
-    current_state = initial_state
+    num_episodes = 10
 
-    while not done:
-        # Perform MCTS
-        optimal_action = mcts_agent.search(current_state)
-        print(f"Optimal Action from MCTS: {optimal_action}")
+    for episode in range(num_episodes):
+        state = env.reset()
+        done = False
+        total_reward = 0
+        steps = 0
 
-        next_state, reward, done, _ = env.step(optimal_action)
-        print(f"Reward: {reward}, done: {done}")
-        env.render()
+        # env.render()
+        while not done:
+            action = agent.search(state)
+            state, reward, done, _ = env.step(action)
+            # env.render()
+            total_reward += reward
+            steps += 1
 
-        current_state = next_state
-
+        print(f"Episode {episode + 1}/{num_episodes} - Total Reward: {total_reward}, Steps: {steps}")
