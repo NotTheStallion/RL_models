@@ -87,7 +87,7 @@ class AdvGridWorldMDP:
                 elif (i, j) in self.materials:
                     cell = "⚙".center(cell_width)
                 elif (i, j) in self.clean:
-                    cell = "🗑".center(cell_width)
+                    cell = "!".center(cell_width)
                 elif (i, j) in self.recharge:
                     cell = "⌁".center(cell_width)
                 else:

@@ -80,7 +80,7 @@ class AdvGridWorldEnv(AdvGridWorldMDP):
                 elif (i, j) in self.materials:
                     cell = "⚙".center(cell_width)
                 elif (i, j) in self.clean:
-                    cell = "🗑".center(cell_width)
+                    cell = "!".center(cell_width)
                 elif (i, j) in self.recharge:
                     cell = "⌁".center(cell_width)
                 elif (i, j) in self.bad_states:
@@ -109,7 +109,7 @@ class AdvGridWorldEnvSlow(AdvGridWorldEnv):
         if new_state in self.bad_states:
             reward = -100
             done = True
-        elif new_state in self.terminal_states:
+        elif new_state in self.terminal_states: # @note: and len(self.tmp_clean) == 0 and len(self.tmp_materials) == 0: # Add this condition to ensure that the agent has collected all materials and cleaned all dirty boxes
             reward = 5
             done = True
         elif new_state in self.tmp_materials:
@@ -124,7 +124,7 @@ class AdvGridWorldEnvSlow(AdvGridWorldEnv):
             reward = 10
             done = True
         else:
-            reward = -1
+            reward = 0
             done = False
 
         self.current_state = new_state
@@ -164,6 +164,8 @@ if __name__ == "__main__":
     warehouse = AdvGridWorldEnvSlow(6, 6, 'clean')
     garage = AdvGridWorldEnvSlow(4, 4, 'recharge')
     hangar.render()
+    warehouse.render()
+    garage.render()
     
     done = False
     total_reward = 0

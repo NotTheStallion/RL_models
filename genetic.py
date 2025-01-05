@@ -43,7 +43,6 @@ class GAAgent:
         Returns:
             Fitness score as a numerical value.
         """
-        # the sum of distance of each cell to the goal
         self.env.reset()
         total_reward = 0
         for action in chromosome:
@@ -104,12 +103,12 @@ class GAAgent:
         fitness_scores = [self.evaluate_fitness(c) for c in self.population]
         new_population = []
 
-        # Apply elitism (preserve best chromosomes)
+        # Preserve best chromosomes
         elite_indices = np.argsort(fitness_scores)[-self.elitism_count:]
         elites = [self.population[i] for i in elite_indices]
         new_population.extend(elites)
 
-        # Generate offspring
+        # Generate next generation
         while len(new_population) < self.population_size:
             parent1, parent2 = self.select_parents(fitness_scores)
             offspring1, offspring2 = self.crossover(parent1, parent2)
