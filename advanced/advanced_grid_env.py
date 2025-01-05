@@ -14,7 +14,7 @@ class AdvGridWorldEnv(AdvGridWorldMDP):
             The initial state.
         """
         if self.goal_type == 'material':
-            self.current_state = random.choice(list(self.states - set(self.bad_states) - set(self.terminal_states)))
+            self.current_state = (0, 0)
         elif self.goal_type == 'clean':
             self.current_state = (0, 0)
         elif self.goal_type == 'recharge':
@@ -33,6 +33,14 @@ class AdvGridWorldEnv(AdvGridWorldMDP):
             self.current_state = state
         else:
             raise ValueError(f"Invalid state: {state}")
+    
+    def possible_actions(self):
+        possible_actions = []
+        for action in self.actions:
+            new_state = (self.current_state[0] + action[0], self.current_state[1] + action[1])
+            if new_state in self.states:
+                possible_actions.append(action)
+        return possible_actions
 
     @abstractmethod
     def step(self, action):

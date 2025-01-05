@@ -132,15 +132,35 @@ class GAAgent:
             best_fitness = max(fitness_scores)
             best_fitness_per_generation.append(best_fitness)
 
-            print(f"Generation {generation + 1}: Best Fitness = {best_fitness}")
+            # print(f"Generation {generation + 1}: Best Fitness = {best_fitness}")
             self.run_generation()
 
-        # Plot the best fitness per generation
-        plt.plot(best_fitness_per_generation)
-        plt.title('Best Fitness per Generation')
-        plt.xlabel('Generation')
-        plt.ylabel('Fitness')
-        plt.show()
+        return best_fitness_per_generation
+    
+    def policy(self):
+        """
+        Extracts the policy from the best chromosome in the population.
+        Returns:
+            A dictionary mapping states to optimal actions.
+        """
+        best_chromosome = max(self.population, key=self.evaluate_fitness)
+        policy = {}
+        self.env.reset()
+        state = self.env.current_state
+        for action in best_chromosome:
+            policy[state] = action
+            next_state, _, done, _ = self.env.step(action)
+            if done:
+                break
+            state = next_state
+        
+        # Assign a default action for all states that were used
+        default_action = random.choice(self.env.possible_actions())
+        for state in self.env.states:
+            if state not in policy:
+                policy[state] = default_action
+
+        return policy
 
 
 
